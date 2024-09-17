@@ -7,7 +7,7 @@ function App() {
   return (
     <div className="App">
      <Todo/>
-     <TodoRef/>
+     {/* <TodoRef/> */}
     </div>
   );
 }

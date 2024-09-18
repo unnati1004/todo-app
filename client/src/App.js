@@ -5,14 +5,12 @@ import { Todo } from "./component/todo";
 function App() {
   return (
     <div className="App">
-
       <Router>
         <Routes>
           <Route path="/" element={<Todo />} />
           {/* Add more routes here */}
         </Routes>
       </Router>
-
     </div>
   );
 }

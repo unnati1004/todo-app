@@ -9,9 +9,9 @@ export const Todo = () => {
   const [editValue, setEditValue] = useState("");  // For editing existing todos
   const [editId, setEditId] = useState(null);  // Track which todo is being edited
 
-  // // Fetch todos from dummyjson.com
+  // Fetch todos from local server
   useEffect(() => {
-    fetch("https://dummyjson.com/todos")
+    fetch("http://localhost:8000/api/todos")
       .then((res) => {
         if (!res.ok) {
           throw new Error("Network response was not ok");
@@ -19,34 +19,14 @@ export const Todo = () => {
         return res.json();
       })
       .then((data) => {
-        setTodoData(data.todos);
         setLoading(false);
+        setTodoData(data);
       })
       .catch((e) => {
         setError(e.message);
         setLoading(false);
       });
-  }, []);
-
-  // Fetch todos from local server
-  // useEffect(() => {
-  //   fetch("http://localhost:8000/api/todos")
-  //     .then((res) => {
-  //       if (!res.ok) {
-  //         throw new Error("Network response was not ok");
-  //       }
-  //       return res.json();
-  //     })
-  //     .then((data) => {
-  //       // Merge the data from the local server
-  //       setTodoData(data.todos);
-  //     })
-  //     .catch((e) => {
-  //       setError(e.message);
-  //     });
-  // }, [todoData]); 
-  
-  // Empty dependency array to run only once on mount
+  }, []); // Empty dependency array to run only once on mount
 
   const handleChange = (e) => {
     setValue(e.target.value);
@@ -61,30 +41,31 @@ export const Todo = () => {
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ todo: editValue, complete: false }), // Ensure you are sending the correct data
+          body: JSON.stringify({ todo: editValue, complete: false }),
         })
-        .then((res) => {
-          if (!res.ok) {
-            throw new Error('Network response was not ok');
-          }
-          return res.json();
-        })
+          .then((res) => {
+            if (!res.ok) {
+              throw new Error(`Network response was not ok: ${res.statusText}`);
+            }
+            return res.json();
+          })
           .then((updatedTodo) => {
-            console.log("updated successfully");
-            
-            setTodoData((prev) =>
-              prev.map((todo) =>
-                todo.id === editId ? updatedTodo : todo
+            setTodoData((prevTodoData) =>
+              prevTodoData.map((todo) =>
+                todo._id === editId ? updatedTodo : todo
               )
             );
+            setEditId(null);
+            setEditValue("");
           })
-          .catch((e) => setError(e.message));
-          setEditId(null);
-          setEditValue("");
+          .catch((e) => {
+            console.error("Error updating todo:", e);
+            setError("Failed to update todo");
+          });
       } else {
         // Add a new todo via POST request
-        const newTodo = {id:new Date(), todo: value, complete: false };
-  
+        const newTodo = { todo: value, complete: false };
+
         fetch("http://localhost:8000/api/todos", {
           method: "POST",
           headers: {
@@ -92,25 +73,25 @@ export const Todo = () => {
           },
           body: JSON.stringify(newTodo),
         })
-          .then((res) => res.json())
+          .then((res) => {
+            if (!res.ok) {
+              throw new Error('Network response was not ok');
+            }
+            return res.json();
+          })
           .then((data) => {
-            // After successfully adding to the server, add to local state
-            console.log(data);
-            
-            setTodoData(prev => [...prev, {id:prev.length+1, todo: value, complete: false }]);
+            setTodoData((prevTodoData) => [...prevTodoData, data]);
+            setValue(""); // Clear input field
           })
           .catch((err) => {
             console.error("Error adding todo:", err);
+            setError("Failed to add todo");
           });
       }
-      setValue(""); // Clear input field
-      setEditValue(""); // Clear edit value
     }
   };
 
   const handleEdit = (id, currentValue) => {
-    console.log(id,currentValue);
-    
     setEditId(id);
     setEditValue(currentValue);
   };
@@ -121,12 +102,34 @@ export const Todo = () => {
 
   const handleInputBlur = () => {
     if (editId !== null && editValue.trim()) {
-      setTodoData((prev) =>
-        prev.map((todo) =>
-          todo.id === editId ? { ...todo, todo: editValue } : todo
-        )
-      );
-      setEditId(null); // Exit edit mode
+      fetch(`http://localhost:8000/api/todos/${editId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ todo: editValue, complete: false }),
+      })
+        .then((res) => {
+          if (!res.ok) {
+            throw new Error(`Network response was not ok: ${res.statusText}`);
+          }
+          return res.json();
+        })
+        .then((updatedTodo) => {
+          setTodoData((prevTodoData) =>
+            prevTodoData.map((todo) =>
+              todo._id === editId ? updatedTodo : todo
+            )
+          );
+          setEditId(null);
+          setEditValue("");
+        })
+        .catch((e) => {
+          console.error("Error updating todo:", e);
+          setError("Failed to update todo");
+        });
+    } else {
+      setEditId(null); // Exit edit mode without changes
       setEditValue(""); // Clear the value
     }
   };
@@ -147,22 +150,24 @@ export const Todo = () => {
 
   return (
     <>
-      <div className="p-4  flex justify-center gap-6">
+      <div className="p-4 flex justify-center gap-6">
         <input
           type="text"
           value={value}
-          className="w-96 border border-blue-500 p-2 "
+          className="w-96 border border-blue-500 p-2"
           onChange={handleChange}
-          onKeyPress={handleInputKeyPress}
+          onKeyPress={(e) => { if (e.key === 'Enter') handleClick() }}
         />
-        <button className="bg-slate-500 px-4 font-bold rounded-md text-white" onClick={handleClick}>{editId !== null ? 'Update' : 'Add'}</button>
+        <button className="bg-slate-500 px-4 font-bold rounded-md text-white" onClick={handleClick}>
+          {editId !== null ? 'Update' : 'Add'}
+        </button>
       </div>
-      <div className=" flex justify-center align-center">
+      <div className="flex justify-center align-center">
         <div className="w-[700px] flex flex-col justify-center align-center">
-          {todoData.map((data) => (
-            <li key={data.id}>
-              {editId === data.id ? (
-                <div className="flex justify-start gap-30">
+          {todoData?.map((data) => (
+            <li key={data._id} className="mb-4">
+              {editId === data._id ? (
+                <div className="flex justify-start gap-4">
                   <input
                     type="text"
                     value={editValue}
@@ -170,15 +175,22 @@ export const Todo = () => {
                     onBlur={handleInputBlur}
                     onKeyPress={handleInputKeyPress}
                     autoFocus
-                    className="border border-blue-500 p-4 w-96"
+                    className="border border-blue-500 p-2 w-96"
                   />
-                  <button className="bg-slate-500 p-4 font-bold rounded-md text-white" onClick={handleInputBlur}>Save</button>
+                  <button
+                    className="bg-slate-500 p-2 font-bold rounded-md text-white"
+                    onClick={handleInputBlur}
+                  >
+                    Save
+                  </button>
                 </div>
               ) : (
                 <span
-                 className="text-lg font-medium"
-                  onClick={() => handleEdit(data.id, data.todo)}
-                  style={{ cursor: 'pointer', textDecoration: data.complete ? 'line-through' : 'none' }}
+                  className="text-lg font-medium cursor-pointer"
+                  onClick={() => handleEdit(data._id, data.todo)}
+                  style={{
+                    textDecoration: data.complete ? "line-through" : "none",
+                  }}
                 >
                   {data.todo}
                 </span>

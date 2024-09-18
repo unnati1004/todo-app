@@ -1,4 +1,3 @@
-// import logo from './logo.svg';
 import "./App.css";
 import { BrowserRouter as Router, Route,Routes, Switch } from "react-router-dom";
 import { Todo } from "./component/todo";

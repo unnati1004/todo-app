@@ -1,5 +1,5 @@
 import "./App.css";
-import { BrowserRouter as Router, Route,Routes, Switch } from "react-router-dom";
+import { BrowserRouter as Router, Route,Routes} from "react-router-dom";
 import { Todo } from "./component/todo";
 
 function App() {
